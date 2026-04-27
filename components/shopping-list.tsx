@@ -25,7 +25,7 @@ const CATEGORIES = [
 
 const CATALOG_ITEMS: Record<string, string[]> = {
   'Hortifruti': ['Abacate', 'Abacaxi', 'Alface', 'Banana', 'Batata', 'Cebola', 'Cenoura', 'Laranja', 'Maçã', 'Melancia', 'Ovos', 'Tomate'].sort(),
-  'Açougue': ['Carne Moída', 'Frango', 'Linguiça', 'Peito de Frango', 'Peito de Peru', 'Salsicha'].sort(),
+  'Açougue': ['Camarão', 'Carne Moída', 'Frango', 'Linguiça', 'Peito de Frango', 'Peito de Peru', 'Salsicha'].sort(),
   'Laticínios': ['Iogurte', 'Leite', 'Manteiga', 'Queijo', 'Requeijão'].sort(),
   'Padaria': ['Pão de Forma', 'Pão Francês', 'Torrada'].sort(),
   'Geral': ['Arroz', 'Açúcar', 'Café', 'Cereal', 'Feijão', 'Macarrão', 'Molho de Tomate', 'Óleo', 'Sal', 'Sabonete', 'Shampoo', 'Detergente'].sort()
