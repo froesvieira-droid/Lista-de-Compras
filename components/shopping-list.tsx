@@ -36,14 +36,17 @@ export default function ShoppingList() {
   const [catalog, setCatalog] = useState<Record<string, string[]>>(CATALOG_ITEMS)
   const [inputText, setInputText] = useState('')
   const [inputQuantity, setInputQuantity] = useState('1')
+  const [selectedCategory, setSelectedCategory] = useState('Geral')
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [showInputSection, setShowInputSection] = useState(true)
+  const [showCatalog, setShowCatalog] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
 
   // Initialization
   useEffect(() => {
     const savedItems = localStorage.getItem('shopping-list-pro')
     const savedCatalog = localStorage.getItem('shopping-list-catalog')
+    const savedShowCatalog = localStorage.getItem('shopping-list-show-catalog')
     
     if (savedItems) {
       try {
@@ -51,6 +54,15 @@ export default function ShoppingList() {
         setTimeout(() => setItems(parsed), 0)
       } catch (e) {
         console.error('Failed to load items', e)
+      }
+    }
+
+    if (savedShowCatalog !== null) {
+      try {
+        const parsed = JSON.parse(savedShowCatalog)
+        setTimeout(() => setShowCatalog(parsed), 0)
+      } catch (e) {
+        console.error('Failed to load showCatalog state', e)
       }
     }
 
@@ -71,8 +83,9 @@ export default function ShoppingList() {
     if (isMounted) {
       localStorage.setItem('shopping-list-pro', JSON.stringify(items))
       localStorage.setItem('shopping-list-catalog', JSON.stringify(catalog))
+      localStorage.setItem('shopping-list-show-catalog', JSON.stringify(showCatalog))
     }
-  }, [items, catalog, isMounted])
+  }, [items, catalog, showCatalog, isMounted])
 
   const addItem = (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,7 +97,7 @@ export default function ShoppingList() {
       text: name,
       checked: false,
       isFavorite: false,
-      category: 'Geral',
+      category: selectedCategory,
       quantity: inputQuantity,
       createdAt: Date.now(),
     }
@@ -99,7 +112,7 @@ export default function ShoppingList() {
     if (!exists) {
       setCatalog(prev => ({
         ...prev,
-        'Geral': [...prev['Geral'], name].sort()
+        [selectedCategory]: [...(prev[selectedCategory] || []), name].sort()
       }))
     }
 
@@ -119,10 +132,11 @@ export default function ShoppingList() {
     ))
   }
 
-  const addFromCatalog = useCallback((text: string, category: string) => {
+  const toggleFromCatalog = useCallback((text: string, category: string) => {
     setItems(prev => {
-      if (prev.some(i => i.text.toLowerCase() === text.toLowerCase())) {
-        return prev
+      const existingItem = prev.find(i => i.text.toLowerCase() === text.toLowerCase())
+      if (existingItem) {
+        return prev.filter(i => i.id !== existingItem.id)
       }
 
       const newItem: ShoppingItem = {
@@ -144,6 +158,12 @@ export default function ShoppingList() {
 
   const clearCompleted = () => {
     setItems(prev => prev.filter(item => !item.checked))
+  }
+
+  const clearSelectedFromCatalog = () => {
+    // Get all item names currently in the catalog
+    const catalogItems = Object.values(catalog).flat().map(i => i.toLowerCase());
+    setItems(prev => prev.filter(item => !catalogItems.includes(item.text.toLowerCase())));
   }
 
   const filteredItems = items.filter(item => 
@@ -225,55 +245,106 @@ export default function ShoppingList() {
                   </button>
                 </div>
               </form>
+
+              {/* Categories Selector */}
+              <div className="space-y-3">
+                <p className="text-xs font-bold text-[#98A2B3] uppercase tracking-widest pl-1">Categoria</p>
+                <div className="flex flex-wrap gap-2">
+                  {CATEGORIES.map((cat) => {
+                    const Icon = cat.icon
+                    const isSelected = selectedCategory === cat.name
+                    return (
+                      <button
+                        id={`cat-${cat.name.toLowerCase().replace(/ & /g, '-')}`}
+                        key={cat.name}
+                        onClick={() => setSelectedCategory(cat.name)}
+                        className={cn(
+                          "flex items-center gap-2 px-5 py-3 rounded-2xl transition-all border text-sm font-bold",
+                          isSelected 
+                            ? "bg-[#101828] border-[#101828] text-white shadow-lg shadow-slate-200" 
+                            : "bg-[#F9FAFB] border-[#EAECF0] hover:border-[#D0D5DD] text-[#475467]"
+                        )}
+                      >
+                        <Icon className={cn("w-4 h-4", !isSelected && cat.color.split(' ')[1])} />
+                        {cat.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             </motion.section>
           )}
         </AnimatePresence>
 
-        {/* Catalog Section - Always Visible */}
+        {/* Catalog Section - Collapsible */}
         <section className="overflow-hidden">
           <div className="bg-white rounded-[2rem] border border-[#EAECF0] p-8 space-y-8 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#F5F3FF] rounded-full flex items-center justify-center text-lg border border-[#EDE9FE]">✨</div>
-                <h2 className="text-xl font-bold text-[#101828]">Sugestões de Compras</h2>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => setShowCatalog(!showCatalog)}
+                    className="w-10 h-10 bg-[#F5F3FF] rounded-full flex items-center justify-center text-lg border border-[#EDE9FE] hover:bg-[#EDE9FE] transition-colors"
+                  >
+                    <ChevronRight className={cn("w-5 h-5 text-[#667085] transition-transform", showCatalog && "rotate-90")} />
+                  </button>
+                  <h2 className="text-xl font-bold text-[#101828]">Sugestões de Compras</h2>
+                </div>
+                <div className="flex items-center gap-4">
+                  <p className="text-sm text-[#667085] hidden sm:block">Toque em um item para adicionar</p>
+                  <button
+                    onClick={clearSelectedFromCatalog}
+                    className="text-xs font-bold text-[#475467] hover:text-[#101828] transition-colors bg-[#F9FAFB] border border-[#EAECF0] px-4 py-2 rounded-xl"
+                  >
+                    Limpar Selecionados
+                  </button>
+                </div>
               </div>
-              <p className="text-sm text-[#667085] hidden sm:block">Toque em um item para adicionar</p>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {Object.entries(catalog).map(([category, itemsList]) => {
-                const catInfo = CATEGORIES.find(c => c.name === category);
-                const CategoryIcon = catInfo?.icon || ShoppingCart;
-                return (
-                  <div key={category} className="space-y-4">
-                    <div className="flex items-center gap-2 px-1">
-                       <CategoryIcon className={cn("w-4 h-4", catInfo?.color.split(' ')[1])} />
-                       <h3 className="font-bold text-[#101828] text-sm uppercase tracking-wider">{category}</h3>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {itemsList.map((itemText) => {
-                        const isAdded = items.some(i => i.text.toLowerCase() === itemText.toLowerCase());
-                        return (
-                          <button
-                            key={itemText}
-                            onClick={() => addFromCatalog(itemText, category)}
-                            className={cn(
-                              "px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
-                              isAdded 
-                                ? "bg-[#ECFDF3] border-[#D1FADF] text-[#027A48] cursor-default" 
-                                : "bg-[#F9FAFB] border-[#EAECF0] text-[#475467] hover:border-[#D0D5DD] hover:bg-white active:scale-95"
-                            )}
-                          >
-                            {isAdded && <span className="mr-1">✓</span>}
-                            {itemText}
-                          </button>
-                        )
-                      })}
-                    </div>
+            <AnimatePresence>
+              {showCatalog && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pt-4">
+                    {Object.entries(catalog).map(([category, itemsList]) => {
+                      const catInfo = CATEGORIES.find(c => c.name === category);
+                      const CategoryIcon = catInfo?.icon || ShoppingCart;
+                      return (
+                        <div key={category} className="space-y-4">
+                          <div className="flex items-center gap-2 px-1">
+                             <CategoryIcon className={cn("w-4 h-4", catInfo?.color.split(' ')[1])} />
+                             <h3 className="font-bold text-[#101828] text-sm uppercase tracking-wider">{category}</h3>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {itemsList.map((itemText) => {
+                              const isAdded = items.some(i => i.text.toLowerCase() === itemText.toLowerCase());
+                              return (
+                                <button
+                                  key={itemText}
+                                  onClick={() => toggleFromCatalog(itemText, category)}
+                                  className={cn(
+                                    "px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
+                                    isAdded 
+                                      ? "bg-[#ECFDF3] border-[#D1FADF] text-[#027A48] hover:bg-[#D1FADF]" 
+                                      : "bg-[#F9FAFB] border-[#EAECF0] text-[#475467] hover:border-[#D0D5DD] hover:bg-white active:scale-95"
+                                  )}
+                                >
+                                  {isAdded && <span className="mr-1">✓</span>}
+                                  {itemText}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                )
-              })}
-            </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </section>
 
